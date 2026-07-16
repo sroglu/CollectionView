@@ -27,6 +27,7 @@ namespace PFound.CollectionView.Config
         [SerializeField] int _bufferRows = 2;
         [SerializeField] bool _useFixedColumns;
         [SerializeField] int _fixedColumns = 1;
+        [SerializeField] int _minColumns = 1;   // responsive floor: never fewer than N items per row
 
         // ---- Grouping ----
         [SerializeField] bool _grouping;
@@ -66,6 +67,7 @@ namespace PFound.CollectionView.Config
         public int BufferRows => _bufferRows;
         public bool UseFixedColumns => _useFixedColumns;
         public int FixedColumns => _fixedColumns;
+        public int MinColumns => _minColumns;
 
         public bool Grouping => _grouping;
         public DefaultExpansion DefaultExpansion => _defaultExpansion;

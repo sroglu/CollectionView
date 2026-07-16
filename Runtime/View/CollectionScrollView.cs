@@ -319,7 +319,8 @@ namespace PFound.CollectionView.View
                 return _config.FixedColumns;
             }
             float width = _viewport.rect.width;
-            return GridLayoutMath.Compute(width, _config.MinItemWidth, _config.Spacing, _config.DesignItemWidth).Columns;
+            int fit = GridLayoutMath.Compute(width, _config.MinItemWidth, _config.Spacing, _config.DesignItemWidth).Columns;
+            return Mathf.Max(fit, _config.MinColumns);   // responsive floor: at least MinColumns per row
         }
 
         void UpdateEmptyState()
