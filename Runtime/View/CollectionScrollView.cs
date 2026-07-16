@@ -47,6 +47,13 @@ namespace PFound.CollectionView.View
         bool _bound;
         bool _rebuilding;
 
+        // Section collapse/expand should keep the TAPPED header pinned where it is (items fold/unfold
+        // below it), so a header toggle anchors the rebuild to that header's on-screen offset. Every other
+        // rebuild (data/filter change) keeps the simple normalized-position preserve.
+        object _anchorSectionKey;
+        float _sectionAnchorDelta;
+        bool _hasSectionAnchor;
+
         /// <summary>Fired when a top/bottom padder shows or hides - drive a scroll-progress indicator/chrome.</summary>
         public event Action<bool, bool> EdgeVisibilityChanged;
 
@@ -109,7 +116,24 @@ namespace PFound.CollectionView.View
 
         public int GetNumberOfCells(EnhancedScroller scroller) => _snapshot.Rows.Count;
 
-        public float GetCellViewSize(EnhancedScroller scroller, int dataIndex) => _snapshot.Rows[dataIndex].Height;
+        public float GetCellViewSize(EnhancedScroller scroller, int dataIndex)
+        {
+            var row = _snapshot.Rows[dataIndex];
+            float fromPrefab = MeasureRowTemplateHeight(row.TemplateKey);
+            return fromPrefab > 0f ? fromPrefab : row.Height;
+        }
+
+        // Row size is driven by the row's template prefab so heights track the prefab, not a magic
+        // number: prefer an explicit LayoutElement.preferredHeight, else the RectTransform height,
+        // else fall back to the snapshot row's Height.
+        float MeasureRowTemplateHeight(string templateKey)
+        {
+            if (!_config.TryGetRowTemplate(templateKey, out GameObject prefab)) return 0f;
+            var layout = prefab.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (layout && layout.preferredHeight > 0f) return layout.preferredHeight;
+            var rt = prefab.transform as RectTransform;
+            return rt ? rt.rect.height : 0f;
+        }
 
         public EnhancedScrollerCellView GetCellView(EnhancedScroller scroller, int dataIndex, int cellIndex)
         {
@@ -157,8 +181,25 @@ namespace PFound.CollectionView.View
             _snapshot = _source.BuildSnapshot();
 
             UpdateEmptyState();
-            float positionFactor = _scroller.NormalizedScrollPosition;
-            _scroller.ReloadData(positionFactor);
+            if (_hasSectionAnchor)
+            {
+                // A section header was tapped: pin THAT header at the same on-screen offset so it folds/
+                // unfolds in place. (Collapsing while scrolled to the very bottom still repositions because
+                // the shrunk content can no longer scroll that far - that clamp is inherent, not a bug.)
+                _hasSectionAnchor = false;
+                _scroller.ReloadData();
+                int hIdx = FindHeaderRowIndex(_anchorSectionKey);
+                if (hIdx >= 0 && _scroller.ScrollSize > 0f)
+                {
+                    float pos = _scroller.GetScrollPositionForDataIndex(hIdx, EnhancedScroller.CellViewPositionEnum.Before) + _sectionAnchorDelta;
+                    _scroller.SetScrollPositionImmediately(Mathf.Clamp(pos, 0f, _scroller.ScrollSize));
+                }
+            }
+            else
+            {
+                float positionFactor = _scroller.NormalizedScrollPosition;
+                _scroller.ReloadData(positionFactor);
+            }
             _rebuilding = false;
         }
 
@@ -228,8 +269,32 @@ namespace PFound.CollectionView.View
         {
             if (_source is IExpansionToggle toggle)
             {
+                // Capture the tapped header's on-screen offset BEFORE the toggle mutates the data, so the
+                // rebuild can pin it back in place (see Rebuild's section-anchor branch).
+                int hIdx = FindHeaderRowIndex(sectionKey);
+                if (hIdx >= 0)
+                {
+                    _sectionAnchorDelta = _scroller.ScrollPosition
+                                          - _scroller.GetScrollPositionForDataIndex(hIdx, EnhancedScroller.CellViewPositionEnum.Before);
+                    _anchorSectionKey = sectionKey;
+                    _hasSectionAnchor = true;
+                }
                 toggle.ToggleSection(sectionKey);
             }
+        }
+
+        // Index of the section-header row for a section key in the current snapshot, or -1 if absent.
+        int FindHeaderRowIndex(object sectionKey)
+        {
+            var rows = _snapshot.Rows;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (rows[i].Kind == RowKind.SectionHeader && Equals(rows[i].SectionKey, sectionKey))
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         void HandleSelected(ICollectionItem item)
