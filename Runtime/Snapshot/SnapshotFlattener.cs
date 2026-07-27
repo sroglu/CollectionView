@@ -97,8 +97,9 @@ namespace PFound.CollectionView.Snapshot
                 }
 
                 bool collapsed = input.Expansion.IsCollapsed(section.Key);
+                bool collapsible = input.Expansion.IsCollapsible(section.Key);
                 object hostData = input.SectionHeaderProvider(section.Key);
-                var headerData = new SectionHeaderData(section.Key, hostData, section.VisibleMembers.Count, section.TotalCount, collapsed);
+                var headerData = new SectionHeaderData(section.Key, hostData, section.VisibleMembers.Count, section.TotalCount, collapsed, collapsible);
                 rows.Add(RowDescriptor.Header(section.Key, headerData, settings.HeaderHeight, settings.HeaderTemplateKey));
 
                 if (collapsed)

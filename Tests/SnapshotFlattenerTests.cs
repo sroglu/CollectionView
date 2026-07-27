@@ -114,6 +114,30 @@ namespace PFound.CollectionView.Tests
         }
 
         [Test]
+        public void Grouped_PinnedOpen_IgnoresCollapseAndReportsNonCollapsible()
+        {
+            var items = new List<FakeItem>
+            {
+                new FakeItem("a1", section: "A"), new FakeItem("a2", section: "A"),
+                new FakeItem("b1", section: "B")
+            };
+            var input = BaseInputs(items, new FlattenSettings { Grouping = true, Columns = 1 });
+            var expansion = new ExpansionState();
+            expansion.SetCollapsed("A", true);    // even a prior collapse...
+            expansion.SetCollapsible("A", false); // ...is forced open when the section is pinned
+            expansion.Toggle("A");                // and Toggle is a no-op on a pinned section
+            input.Expansion = expansion;
+
+            var snap = SnapshotFlattener.Flatten(input);
+
+            Assert.AreEqual(3, snap.VisibleItemCount, "pinned-open A keeps all members visible");
+            var headerA = (SectionHeaderData)snap.Rows[0].HeaderData;
+            Assert.IsFalse(headerA.IsCollapsed, "pinned section never collapses");
+            Assert.IsFalse(headerA.IsCollapsible, "pinned section reports non-collapsible");
+            Assert.IsTrue(expansion.IsCollapsible("B"), "other sections stay collapsible by default");
+        }
+
+        [Test]
         public void HeaderRollup_ReportsPostFilterVisibleCount()
         {
             var items = new List<FakeItem>

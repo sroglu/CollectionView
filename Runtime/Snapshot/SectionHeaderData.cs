@@ -22,13 +22,18 @@ namespace PFound.CollectionView.Snapshot
         /// <summary>Whether the section is currently collapsed (members omitted from the snapshot).</summary>
         public readonly bool IsCollapsed;
 
-        public SectionHeaderData(object sectionKey, object hostData, int visibleCount, int totalCount, bool isCollapsed)
+        /// <summary>Whether the user may collapse this section. False = pinned open; a header cell should hide or
+        /// disable its collapse affordance. Default true (collapsible).</summary>
+        public readonly bool IsCollapsible;
+
+        public SectionHeaderData(object sectionKey, object hostData, int visibleCount, int totalCount, bool isCollapsed, bool isCollapsible)
         {
             SectionKey = sectionKey;
             HostData = hostData;
             VisibleCount = visibleCount;
             TotalCount = totalCount;
             IsCollapsed = isCollapsed;
+            IsCollapsible = isCollapsible;
         }
     }
 }
